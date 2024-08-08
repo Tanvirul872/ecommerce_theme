@@ -376,6 +376,16 @@ jQuery(document).ready(function ($) {
   });
 
 
+
+
+  // search_products_frm_pos start
+
+   
+
+  // search_products_frm_pos end
+
+
+
   // Function to update subtotals and grand total
   function updateSubtotalsAndGrandTotal() {
       var grandTotal = 0;
@@ -521,11 +531,10 @@ $('#pos_add_product').submit(function (event) {
       type:'post',
       // data: data,
       success: function(response){ 
-        location.reload() ;
+        // location.reload() ;
       }
   });
 
-  
 });
 
 

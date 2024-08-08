@@ -25,17 +25,13 @@ function filter_products()
 
     $products = new WP_Query($args);
 
-
     if ($products->have_posts()) {
         while ($products->have_posts()) {
             $products->the_post();
-
             $product = wc_get_product();
-
 ?>
             <div class="product-item">
                 <img src="<?php echo get_the_post_thumbnail_url(); ?>" alt="<?php the_title(); ?>">
-
                 <p class="product-name"><?php the_title(); ?></p>
                 <p class="product-sku">SKU: <?php echo esc_html($product->get_sku()); ?></p>
                 <p class="product-price"><?php echo get_post_meta(get_the_ID(), '_price', true) . ' $'; ?></p>
@@ -240,16 +236,10 @@ if(!empty($last_bill_no)){
         $current_stock = $product->get_stock_quantity();
         $new_stock = $current_stock + $quantity_to_add;   
         
-        // $current_stock = get_post_meta($product_id, '_stock', true);
-
-        // // Calculate the new stock quantity
-        // $new_stock = $current_stock + $quantity_to_add;
-    
         // Update the stock quantity meta field
         update_post_meta($product_id, '_stock', $new_stock);
 
     }
-
         $table_name_2 =  $wpdb->prefix . 'woo_purchase_orders';  
         $purchase_order_data = array( 
             'bill_no' => $new_bill_no,
@@ -259,7 +249,6 @@ if(!empty($last_bill_no)){
             'note' => $originalArray['note'], // You can set note if needed
             'supplier_id' => $originalArray['supplier'], 
             'date' => $originalArray['purchase_date'], // Assuming same purchase date for all products
-            
         );
     
 
@@ -267,11 +256,7 @@ if(!empty($last_bill_no)){
     if ($wpdb->last_error) {
         echo "Error: " . $wpdb->last_error;
     } 
-
     wp_die() ; 
-
-
-
 }
 
 
@@ -289,6 +274,10 @@ function pos_add_product()
     wp_parse_str($_POST['pos_add_product'], $formFields); 
     $originalArray = $formFields ;
 
+//     echo '<pre>' ; 
+//     print_r($originalArray) ; 
+//     exit ;
+
     $data_to_insert = array();
     for ($i = 0; $i < count($originalArray['productid']); $i++) {
         $data_to_insert[] = array(
@@ -300,7 +289,7 @@ function pos_add_product()
         );
     }
     
-
+    
     $order = wc_create_order();
     $order_total = 0;
     // Add products to the order
@@ -314,7 +303,30 @@ function pos_add_product()
         }
     }
 
-    $order->set_total($originalArray['paid']);
+    $shipping_charge = ($originalArray['_billing_state'] == 'BD-13') ? 80 : 130;
+    $order_total += $shipping_charge;
+    print_r($order_total) ; 
+    exit ; 
+    
+    // Add a shipping line item to the order
+    $shipping_item = new WC_Order_Item_Shipping();
+    $shipping_item->set_method_title('Custom Shipping'); // Name your shipping method
+    $shipping_item->set_total($shipping_charge);
+    $order->add_item($shipping_item);     
+
+      // Set the billing details
+      $order->set_billing_first_name($originalArray['customer_name']);
+      $order->set_billing_address_1($originalArray['customer_address']);
+      $order->set_billing_phone($originalArray['customer_number']);
+      $order->set_billing_state($originalArray['_billing_state']);
+      $order->set_customer_note($originalArray['note']);
+    //   $order->set_date_created($originalArray['purchase_date']);
+    if(!empty($originalArray['paid'])){
+      $order->set_total($originalArray['paid']);
+    }else{
+        $order->set_total($order_total); 
+    }
+
     $order->save();
 
     wp_die() ; 

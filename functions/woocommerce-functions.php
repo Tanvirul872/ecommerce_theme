@@ -411,60 +411,88 @@ add_action('admin_footer','custom_admin_css') ;
 
 
 
-function set_default_product_profit( $order_id ) {
-  // Get the order object
-  $order = wc_get_order( $order_id );
+// function set_default_product_profit( $order_id ) {
+//   // Get the order object
+//   $order = wc_get_order( $order_id );
 
-  if ( !$order || $order->get_date_created() === null ) {
-      return;
-  }
+//   if ( !$order || $order->get_date_created() === null ) {
+//       return;
+//   }
 
-  // Get order items
-  $items = $order->get_items();
+//   // Get order items
+//   $items = $order->get_items();
 
-  // Loop through order items
-  foreach ( $items as $item_id => $item ) {  
-      // Update product_profit field with default value (20)
-      $product_id = $item->get_product_id();
-      // $product_profit = 20; // Your default value
-      $purchase_price = get_post_meta( $product_id, '_purchase_price', true );
+//   // Loop through order items
+//   foreach ( $items as $item_id => $item ) {  
+//       // Update product_profit field with default value (20)
+//       $product_id = $item->get_product_id();
+//       // $product_profit = 20; // Your default value
+//       $purchase_price = get_post_meta( $product_id, '_purchase_price', true );
 
-      // Get the regular price of the product
-      $regular_price = get_post_meta( $product_id, '_regular_price', true );
+//       // Get the regular price of the product
+//       $regular_price = get_post_meta( $product_id, '_regular_price', true );
 
-      // Get the sale price of the product
-      $sale_price = get_post_meta( $product_id, '_sale_price', true );
+//       // Get the sale price of the product
+//       $sale_price = get_post_meta( $product_id, '_sale_price', true );
 
-      // Determine the price to use based on whether the product is on sale or not
-      $price_to_use = $sale_price ? $sale_price : $regular_price;
+//       // Determine the price to use based on whether the product is on sale or not
+//       $price_to_use = $sale_price ? $sale_price : $regular_price;
 
-      // Calculate profit
-      $product_profit = $price_to_use - $purchase_price;
-      $number_of_items_ordered = $item->get_quantity();
+//       // Calculate profit
+//       $product_profit = $price_to_use - $purchase_price;
+//       $number_of_items_ordered = $item->get_quantity();
       
 
-      global $wpdb;
-      $wpdb->update(
-          $wpdb->prefix . 'woocommerce_order_items',
-          array(
-            'product_profit' => $product_profit ,
-            'quantity_orderd' => $number_of_items_ordered 
-          ),
-          array( 'order_item_id' => $item_id ),
-          array( '%d' ,'%d' ),
-          array( '%d' )
-      );
-  }
-}
+//       global $wpdb;
+//       $wpdb->update(
+//           $wpdb->prefix . 'woocommerce_order_items',
+//           array(
+//             'product_profit' => $product_profit ,
+//             'quantity_orderd' => $number_of_items_ordered 
+//           ),
+//           array( 'order_item_id' => $item_id ),
+//           array( '%d' ,'%d' ),
+//           array( '%d' )
+//       );
+//   }
+// }
 
-// Hook into order creation event
-add_action( 'woocommerce_new_order', 'set_default_product_profit' );
-
-
+// // Hook into order creation event
+// add_action( 'woocommerce_new_order', 'set_default_product_profit' );
 
 
 
+// function set_default_product_profit($order_id) {
+//     global $wpdb;
 
+//     // Get the order object
+//     $order = wc_get_order($order_id);
+//     if (!$order) {
+//         return;
+//     }
+
+//     // Loop through each order item
+//     foreach ($order->get_items() as $item_id => $item) {
+//         $product = $item->get_product();
+//         $regular_price = (float) $product->get_regular_price();
+//         $sale_price = (float) $product->get_sale_price();
+//         $purchase_price = (float) get_post_meta($product->get_id(), '_purchase_price', true);
+
+//         // Use sale price if available, otherwise regular price
+//         $price_to_use = !empty($sale_price) ? $sale_price : $regular_price;
+
+//         // Calculate profit
+//         $product_profit = $price_to_use - $purchase_price;
+//         $number_of_items_ordered = $item->get_quantity();
+
+//         // Update order item meta
+//         wc_update_order_item_meta($item_id, 'product_profit', $product_profit);
+//         wc_update_order_item_meta($item_id, 'quantity_ordered', $number_of_items_ordered);
+//     }
+// }
+
+// // Hook into order creation event
+// add_action('woocommerce_checkout_create_order_line_item', 'set_default_product_profit', 10, 4);
 
 
 function get_order_sales_by_date() {  
@@ -486,7 +514,6 @@ function get_order_sales_by_date() {
 
 
 // get todays purchase cost   
-
 function get_todays_purchase_cost() {  
 
   global $wpdb;
@@ -509,9 +536,6 @@ function get_todays_purchase_cost() {
   return $total_payable ;
  }
 
-
-
- 
 // get todays sell profit 
  function get_todays_sell_profit() {  
 
@@ -520,31 +544,46 @@ function get_todays_purchase_cost() {
   ) );
 
   $total_sell_profit =0 ;
+  $total_purchase_price = 0 ; 
+  $total_ordered_amount = 0; 
+
+  
   foreach ($orders as $order){
 
     global $wpdb; 
-    $table_name = $wpdb->prefix . 'woocommerce_order_items';
-    $order_id =   $order->id ; 
+    $table_name = $wpdb->prefix . 'wc_orders';
+    $order_id =   $order->id ;  
+    global $wpdb;
+    // Get the order object
+    $order = wc_get_order($order_id);
+    if (!$order) {
+        return;
+    }
+
+    foreach ($order->get_items() as $item_id => $item) {
+
+        $product = $item->get_product();   
+        $purchase_price = (float) get_post_meta($product->get_id(), '_purchase_price', true) * $item['quantity'];
+        $total_purchase_price += $purchase_price;  
+    }
+
     $query = $wpdb->prepare(
-        "SELECT * FROM $table_name WHERE order_id = %d",
+        "SELECT * FROM $table_name WHERE id = %d",
         $order_id
     ); 
 
-    $results = $wpdb->get_results( $query );
-
-    
+    $results = $wpdb->get_results( $query ); 
     if ( $results ) {
         foreach ( $results as $result ) {
-            $product_profit = $result->product_profit;
-            $quantity_orderd = $result->quantity_orderd;
-            $sell_profit = ($product_profit * $quantity_orderd) ; 
-            $total_sell_profit += $sell_profit; 
+          // echo '<pre>' ; 
+          // print_r($result) ;
+          $total_ordered_amount += $result->total_amount;
         }
     } 
+} 
 
-}
-
-  return $total_sell_profit ; 
+$total_sell_profit = $total_ordered_amount - $total_purchase_price ;
+return $total_sell_profit ; 
  }
 
 
